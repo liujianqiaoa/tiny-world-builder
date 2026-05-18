@@ -6768,6 +6768,62 @@
     toolDk: new THREE.MeshLambertMaterial({ color: 0x5a4a30 }),
   };
 
+  const chopTreeShader = {
+    vertexShader: `
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      uniform float time;
+      uniform float chopProgress;
+      uniform float shakeIntensity;
+      void main() {
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        vPosition = position;
+        
+        vec3 pos = position;
+        float shake = sin(time * 20.0 + position.x * 10.0 + position.z * 10.0) * shakeIntensity * chopProgress;
+        pos.x += shake;
+        pos.z += shake * 0.5;
+        
+        float bend = chopProgress * 0.3;
+        pos.x += bend * (1.0 - position.y);
+        pos.z += bend * 0.3 * (1.0 - position.y);
+        
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      uniform float time;
+      uniform float chopProgress;
+      uniform vec3 color;
+      uniform vec3 darkColor;
+      
+      void main() {
+        vec3 finalColor = mix(color, darkColor, chopProgress * 0.5);
+        
+        float damage = sin(time * 15.0 + vPosition.x * 5.0) * 0.5 + 0.5;
+        damage = smoothstep(0.3, 0.7, damage * chopProgress);
+        finalColor = mix(finalColor, vec3(0.3, 0.2, 0.1), damage * 0.3);
+        
+        float light = max(0.0, dot(vNormal, vec3(0.5, 1.0, 0.5))) * 0.5 + 0.5;
+        finalColor *= light;
+        
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `,
+    uniforms: {
+      time: { value: 0 },
+      chopProgress: { value: 0 },
+      shakeIntensity: { value: 0.05 },
+      color: { value: new THREE.Color(0x6b8e4e) },
+      darkColor: { value: new THREE.Color(0x4a6c3a) },
+    }
+  };
+
   function makeCharacter() {
     const g = new THREE.Group();
     g.name = 'player-character';
@@ -6941,27 +6997,160 @@
     return null;
   }
 
+  const pendingChopTasks = [];
+  const treeChopStates = new Map();
+
+  function getTreeChopState(cellX, cellZ) {
+    const key = cellX + ',' + cellZ;
+    if (!treeChopStates.has(key)) {
+      treeChopStates.set(key, {
+        hits: 0,
+        shaderMaterial: null,
+        originalMaterials: [],
+        wobbleTimer: 0,
+        wobbleAmount: 0,
+      });
+    }
+    return treeChopStates.get(key);
+  }
+
+  function initTreeChopEffect(cellX, cellZ) {
+    const key = cellX + ',' + cellZ;
+    const meshKey = cellX + ',' + cellZ;
+    const cellMesh = cellMeshes[meshKey];
+    
+    if (!cellMesh || !cellMesh.object) return;
+
+    const chopState = getTreeChopState(cellX, cellZ);
+    
+    if (!chopState.shaderMaterial) {
+      chopState.shaderMaterial = new THREE.ShaderMaterial({
+        vertexShader: chopTreeShader.vertexShader,
+        fragmentShader: chopTreeShader.fragmentShader,
+        uniforms: {
+          time: { value: 0 },
+          chopProgress: { value: 0 },
+          shakeIntensity: { value: 0.05 },
+          color: { value: new THREE.Color(0x6b8e4e) },
+          darkColor: { value: new THREE.Color(0x4a6c3a) },
+        },
+        lights: true,
+      });
+    }
+
+    cellMesh.object.traverse(child => {
+      if (child.isMesh && child.material) {
+        chopState.originalMaterials.push({ mesh: child, material: child.material });
+        child.material = chopState.shaderMaterial;
+      }
+    });
+  }
+
+  function restoreTreeMaterials(cellX, cellZ) {
+    const key = cellX + ',' + cellZ;
+    const chopState = treeChopStates.get(key);
+    if (!chopState) return;
+
+    if (chopState.shaderMaterial) {
+      chopState.shaderMaterial.dispose();
+    }
+
+    for (const { mesh, material } of chopState.originalMaterials) {
+      mesh.material = material;
+    }
+
+    treeChopStates.delete(key);
+  }
+
+  function updateTreeChopEffects(dt) {
+    const currentTime = performance.now() * 0.001;
+
+    for (const [key, chopState] of treeChopStates) {
+      if (chopState.shaderMaterial) {
+        chopState.shaderMaterial.uniforms.time.value = currentTime;
+        chopState.shaderMaterial.uniforms.chopProgress.value = chopState.hits / 3;
+      }
+
+      if (chopState.wobbleAmount > 0) {
+        chopState.wobbleTimer += dt;
+        const meshKey = key;
+        const cellMesh = cellMeshes[meshKey];
+        if (cellMesh && cellMesh.object) {
+          const wobble = Math.sin(chopState.wobbleTimer * 30) * chopState.wobbleAmount;
+          cellMesh.object.rotation.x = wobble * 0.3;
+          cellMesh.object.rotation.z = wobble * 0.2;
+        }
+        chopState.wobbleAmount *= 0.92;
+        if (chopState.wobbleAmount < 0.001) {
+          chopState.wobbleAmount = 0;
+          const cellMesh = cellMeshes[meshKey];
+          if (cellMesh && cellMesh.object) {
+            cellMesh.object.rotation.x = 0;
+            cellMesh.object.rotation.z = 0;
+          }
+        }
+      }
+    }
+  }
+
+  function queueTreeRemoval(cellX, cellZ) {
+    pendingChopTasks.push({
+      type: 'remove',
+      cellX,
+      cellZ,
+      timestamp: performance.now(),
+    });
+  }
+
+  function processPendingChopTasks() {
+    const now = performance.now();
+    const tasksToRemove = [];
+
+    for (const task of pendingChopTasks) {
+      if (task.type === 'remove' && now - task.timestamp > 200) {
+        const grassVariants = ['grass'];
+        const randomTerrain = grassVariants[Math.floor(Math.random() * grassVariants.length)];
+        setCell(task.cellX, task.cellZ, {
+          terrain: randomTerrain,
+          kind: null,
+          floors: 1,
+          animate: true,
+        });
+        restoreTreeMaterials(task.cellX, task.cellZ);
+        showInteractionPopup('树木已砍伐！');
+        tasksToRemove.push(task);
+      }
+    }
+
+    for (const task of tasksToRemove) {
+      const index = pendingChopTasks.indexOf(task);
+      if (index > -1) pendingChopTasks.splice(index, 1);
+    }
+  }
+
   function chopTree(cellX, cellZ) {
     const cell = getWorldCell(cellX, cellZ);
     if (!cell || cell.kind !== 'tree') return false;
 
-    character.chopCount++;
-    showInteractionPopup('砍树中... ' + character.chopCount + '/3');
+    const chopState = getTreeChopState(cellX, cellZ);
+    chopState.hits++;
 
-    if (character.chopCount >= 3) {
-      const grassVariants = ['grass'];
-      const randomTerrain = grassVariants[Math.floor(Math.random() * grassVariants.length)];
-      setCell(cellX, cellZ, {
-        terrain: randomTerrain,
-        kind: null,
-        floors: 1,
-        animate: true,
-      });
-      showInteractionPopup('树木已砍伐！');
+    if (chopState.hits === 1) {
+      initTreeChopEffect(cellX, cellZ);
+    }
+
+    chopState.wobbleAmount = 0.15 + chopState.hits * 0.05;
+    chopState.wobbleTimer = 0;
+
+    character.chopCount = chopState.hits;
+    showInteractionPopup('砍树中... ' + chopState.hits + '/3');
+
+    if (chopState.hits >= 3) {
+      queueTreeRemoval(cellX, cellZ);
       character.chopCount = 0;
-      character.chopCooldown = 0.5;
+      character.chopCooldown = 0.6;
     } else {
-      character.chopCooldown = 0.4;
+      character.chopCooldown = 0.35;
     }
     return true;
   }
@@ -13089,6 +13278,9 @@
     updateSmoke(dt);
 
     updateCharacter(dt);
+
+    updateTreeChopEffects(dt);
+    processPendingChopTasks();
 
     renderScene();
   }
