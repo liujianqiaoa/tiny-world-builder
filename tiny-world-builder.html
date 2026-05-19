@@ -2883,6 +2883,186 @@
     font-size: 11px;
     margin: 0 2px;
   }
+
+  /* 背包系统样式 */
+  .inventory-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: rgba(139, 111, 84, 0.95);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    z-index: 100;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  }
+  .inventory-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  }
+  .inventory-count {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #e74c3c;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .inventory-panel {
+    position: fixed;
+    bottom: 90px;
+    right: 20px;
+    width: 340px;
+    background: rgba(245, 235, 218, 0.98);
+    border-radius: 16px;
+    padding: 16px;
+    z-index: 99;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    transform: translateY(20px);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    border: 2px solid rgba(139, 111, 84, 0.4);
+  }
+  .inventory-panel.visible {
+    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .inventory-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 20px;
+    color: #5a4a3a;
+    margin: 0 0 14px 0;
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 2px dashed rgba(139, 111, 84, 0.3);
+  }
+  .inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+  }
+  .inventory-slot {
+    width: 52px;
+    height: 52px;
+    background: rgba(139, 111, 84, 0.15);
+    border: 2px solid rgba(139, 111, 84, 0.25);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+  .inventory-slot:hover {
+    transform: scale(1.05);
+    background: rgba(139, 111, 84, 0.25);
+    border-color: rgba(139, 111, 84, 0.5);
+  }
+  .inventory-slot.has-item {
+    background: rgba(139, 111, 84, 0.2);
+  }
+  .slot-icon {
+    font-size: 28px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  }
+  .slot-count {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #5a4a3a;
+    text-shadow: 0 1px 0 white;
+  }
+  .inventory-slot:hover .slot-count {
+    color: #3a2a1a;
+  }
+
+  /* 物品收集动画 */
+  .collect-item {
+    position: fixed;
+    font-size: 32px;
+    pointer-events: none;
+    z-index: 101;
+    animation: collectFloat 0.8s ease-out forwards;
+  }
+  @keyframes collectFloat {
+    0% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: translateY(-30px) scale(1.2);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-60px) scale(0.5);
+    }
+  }
+
+  /* 快捷栏 */
+  .hotbar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    background: rgba(245, 235, 218, 0.92);
+    padding: 8px 12px;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    border: 2px solid rgba(139, 111, 84, 0.35);
+  }
+  .hotbar-slot {
+    width: 48px;
+    height: 48px;
+    background: rgba(139, 111, 84, 0.18);
+    border: 2px solid rgba(139, 111, 84, 0.3);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .hotbar-slot:hover {
+    transform: scale(1.05);
+    border-color: rgba(139, 111, 84, 0.6);
+  }
+  .hotbar-slot.selected {
+    border-color: #e67e22;
+    box-shadow: 0 0 0 2px rgba(230, 126, 34, 0.3), inset 0 0 10px rgba(230, 126, 34, 0.15);
+  }
+  .hotbar-key {
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  }
 </style>
 <script type="text/javascript">
   // AI interfaces are a dev/flagged feature. Production hosts default to no
@@ -2946,6 +3126,23 @@
   <div id="root" style="position:fixed;top:0;left:0;width:0;height:0;pointer-events:none;"></div>
   <div id="cloud-layer"></div>
   <div id="tod-tint" aria-hidden="true"></div>
+
+  <!-- 背包系统 UI -->
+  <button class="inventory-btn" id="inventory-btn" title="背包 (I)">
+    🎒
+    <span class="inventory-count" id="inventory-count">0</span>
+  </button>
+  <div class="inventory-panel" id="inventory-panel">
+    <h3 class="inventory-title">📦 背包</h3>
+    <div class="inventory-grid" id="inventory-grid"></div>
+  </div>
+
+  <!-- 快捷栏 -->
+  <div class="hotbar" id="hotbar"></div>
+
+  <!-- 交互提示 -->
+  <div id="interaction-popup"></div>
+  <div id="interaction-hint"></div>
 
   <!-- Minimap (top-down repaint of the home grid) -->
   <div class="minimap-wrap" id="minimap-wrap">
@@ -7128,6 +7325,371 @@
     }
   }
 
+  // 背包系统 - 物品定义
+  const ITEMS = {
+    wood: { icon: '🪵', name: '木材', stackSize: 99 },
+    stone: { icon: '🪨', name: '石头', stackSize: 99 },
+    corn: { icon: '🌽', name: '玉米', stackSize: 99 },
+    wheat: { icon: '🌾', name: '小麦', stackSize: 99 },
+    pumpkin: { icon: '🎃', name: '南瓜', stackSize: 99 },
+    crop: { icon: '🥬', name: '白菜', stackSize: 99 },
+  };
+
+  // 背包数据系统
+  const inventory = {
+    items: [],
+    maxSlots: 20,
+    hotbarSlots: 6,
+    selectedHotbarSlot: 0,
+  };
+
+  // 初始化背包
+  function initInventory() {
+    inventory.items = [];
+    for (let i = 0; i < inventory.maxSlots; i++) {
+      inventory.items.push(null);
+    }
+    renderInventory();
+    renderHotbar();
+    updateInventoryCount();
+  }
+
+  // 添加物品到背包
+  function addItemToInventory(itemType, count = 1) {
+    const itemDef = ITEMS[itemType];
+    if (!itemDef) return false;
+
+    // 先找同类型的物品堆叠
+    for (let i = 0; i < inventory.items.length; i++) {
+      const slot = inventory.items[i];
+      if (slot && slot.type === itemType && slot.count < itemDef.stackSize) {
+        const canAdd = Math.min(count, itemDef.stackSize - slot.count);
+        slot.count += canAdd;
+        count -= canAdd;
+        if (count <= 0) {
+          renderInventory();
+          updateInventoryCount();
+          return true;
+        }
+      }
+    }
+
+    // 找空格子
+    for (let i = 0; i < inventory.items.length; i++) {
+      if (!inventory.items[i]) {
+        const canAdd = Math.min(count, itemDef.stackSize);
+        inventory.items[i] = { type: itemType, count: canAdd };
+        count -= canAdd;
+        if (count <= 0) {
+          renderInventory();
+          updateInventoryCount();
+          return true;
+        }
+      }
+    }
+
+    renderInventory();
+    updateInventoryCount();
+    return count <= 0;
+  }
+
+  // 更新背包物品数量显示
+  function updateInventoryCount() {
+    const countEl = document.getElementById('inventory-count');
+    if (countEl) {
+      const totalCount = inventory.items.reduce((sum, slot) => sum + (slot ? slot.count : 0), 0);
+      countEl.textContent = totalCount;
+      countEl.style.display = totalCount > 0 ? 'flex' : 'none';
+    }
+  }
+
+  // 渲染背包
+  function renderInventory() {
+    const gridEl = document.getElementById('inventory-grid');
+    if (!gridEl) return;
+
+    gridEl.innerHTML = '';
+    for (let i = 0; i < inventory.maxSlots; i++) {
+      const slotEl = document.createElement('div');
+      slotEl.className = 'inventory-slot';
+      slotEl.dataset.slotIndex = i;
+
+      const slot = inventory.items[i];
+      if (slot) {
+        const itemDef = ITEMS[slot.type];
+        slotEl.classList.add('has-item');
+        slotEl.innerHTML = `
+          <span class="slot-icon">${itemDef.icon}</span>
+          <span class="slot-count">${slot.count}</span>
+        `;
+      }
+
+      gridEl.appendChild(slotEl);
+    }
+  }
+
+  // 渲染快捷栏
+  function renderHotbar() {
+    const hotbarEl = document.getElementById('hotbar');
+    if (!hotbarEl) return;
+
+    hotbarEl.innerHTML = '';
+    for (let i = 0; i < inventory.hotbarSlots; i++) {
+      const slotEl = document.createElement('div');
+      slotEl.className = 'hotbar-slot';
+      slotEl.dataset.slotIndex = i;
+
+      if (i === inventory.selectedHotbarSlot) {
+        slotEl.classList.add('selected');
+      }
+
+      const keyEl = document.createElement('span');
+      keyEl.className = 'hotbar-key';
+      keyEl.textContent = i + 1;
+      slotEl.appendChild(keyEl);
+
+      const slot = inventory.items[i];
+      if (slot) {
+        const itemDef = ITEMS[slot.type];
+        slotEl.classList.add('has-item');
+        const iconEl = document.createElement('span');
+        iconEl.className = 'slot-icon';
+        iconEl.style.fontSize = '24px';
+        iconEl.textContent = itemDef.icon;
+        slotEl.appendChild(iconEl);
+
+        const countEl = document.createElement('span');
+        countEl.className = 'slot-count';
+        countEl.style.fontSize = '11px';
+        countEl.textContent = slot.count;
+        slotEl.appendChild(countEl);
+      }
+
+      slotEl.addEventListener('click', () => {
+        inventory.selectedHotbarSlot = i;
+        renderHotbar();
+      });
+
+      hotbarEl.appendChild(slotEl);
+    }
+  }
+
+  // 显示物品收集动画
+  function showCollectAnimation(itemType, x, y) {
+    const itemDef = ITEMS[itemType];
+    if (!itemDef) return;
+
+    const animEl = document.createElement('div');
+    animEl.className = 'collect-item';
+    animEl.textContent = '+' + itemDef.icon;
+    animEl.style.left = x + 'px';
+    animEl.style.top = y + 'px';
+    document.body.appendChild(animEl);
+
+    setTimeout(() => animEl.remove(), 800);
+  }
+
+  // 切换背包显示
+  let inventoryVisible = false;
+  function toggleInventory() {
+    inventoryVisible = !inventoryVisible;
+    const panel = document.getElementById('inventory-panel');
+    if (panel) {
+      panel.classList.toggle('visible', inventoryVisible);
+    }
+  }
+
+  // 石头和农作物砍伐状态
+  const rockChopStates = new Map();
+  const cropChopStates = new Map();
+
+  function getRockChopState(cellX, cellZ) {
+    const key = cellX + ',' + cellZ;
+    if (!rockChopStates.has(key)) {
+      rockChopStates.set(key, { hits: 0, wobbleTimer: 0, wobbleAmount: 0 });
+    }
+    return rockChopStates.get(key);
+  }
+
+  function getCropChopState(cellX, cellZ) {
+    const key = cellX + ',' + cellZ;
+    if (!cropChopStates.has(key)) {
+      cropChopStates.set(key, { hits: 0, wobbleTimer: 0, wobbleAmount: 0 });
+    }
+    return cropChopStates.get(key);
+  }
+
+  // 砍石头
+  function chopRock(cellX, cellZ) {
+    const cell = getWorldCell(cellX, cellZ);
+    if (!cell || cell.kind !== 'rock') return false;
+
+    const chopState = getRockChopState(cellX, cellZ);
+    chopState.hits++;
+    chopState.wobbleAmount = 0.12 + chopState.hits * 0.04;
+    chopState.wobbleTimer = 0;
+
+    showInteractionPopup('采石中... ' + chopState.hits + '/4');
+
+    if (chopState.hits >= 4) {
+      queueRockRemoval(cellX, cellZ);
+      chopState.hits = 0;
+      character.chopCooldown = 0.7;
+    } else {
+      character.chopCooldown = 0.3;
+    }
+    return true;
+  }
+
+  const pendingRockTasks = [];
+  function queueRockRemoval(cellX, cellZ) {
+    pendingRockTasks.push({ type: 'remove', cellX, cellZ, timestamp: performance.now() });
+  }
+
+  function processPendingRockTasks() {
+    const now = performance.now();
+    const tasksToRemove = [];
+
+    for (const task of pendingRockTasks) {
+      if (task.type === 'remove' && now - task.timestamp > 200) {
+        const grassVariants = ['grass'];
+        const randomTerrain = grassVariants[Math.floor(Math.random() * grassVariants.length)];
+        setCell(task.cellX, task.cellZ, { terrain: randomTerrain, kind: null, floors: 1, animate: true });
+        rockChopStates.delete(task.cellX + ',' + task.cellZ);
+
+        // 收集石头
+        const worldPos = tilePos(task.cellX, task.cellZ);
+        const screenPos = getScreenPosition(worldPos.x, worldPos.y + 0.5, worldPos.z);
+        const stoneCount = Math.floor(Math.random() * 3) + 2;
+        addItemToInventory('stone', stoneCount);
+        showCollectAnimation('stone', screenPos.x, screenPos.y);
+        showInteractionPopup('获得石头 x' + stoneCount);
+        tasksToRemove.push(task);
+      }
+    }
+
+    for (const task of tasksToRemove) {
+      const idx = pendingRockTasks.indexOf(task);
+      if (idx > -1) pendingRockTasks.splice(idx, 1);
+    }
+  }
+
+  // 收割农作物
+  function harvestCrop(cellX, cellZ) {
+    const cell = getWorldCell(cellX, cellZ);
+    if (!cell) return false;
+
+    const cropTypes = ['crop', 'corn', 'wheat', 'pumpkin'];
+    if (!cropTypes.includes(cell.kind)) return false;
+
+    const chopState = getCropChopState(cellX, cellZ);
+    chopState.hits++;
+    chopState.wobbleAmount = 0.1 + chopState.hits * 0.03;
+    chopState.wobbleTimer = 0;
+
+    showInteractionPopup('收割中... ' + chopState.hits + '/2');
+
+    if (chopState.hits >= 2) {
+      queueCropRemoval(cellX, cellZ, cell.kind);
+      chopState.hits = 0;
+      character.chopCooldown = 0.5;
+    } else {
+      character.chopCooldown = 0.25;
+    }
+    return true;
+  }
+
+  const pendingCropTasks = [];
+  function queueCropRemoval(cellX, cellZ, cropType) {
+    pendingCropTasks.push({ type: 'remove', cellX, cellZ, cropType, timestamp: performance.now() });
+  }
+
+  function processPendingCropTasks() {
+    const now = performance.now();
+    const tasksToRemove = [];
+
+    for (const task of pendingCropTasks) {
+      if (task.type === 'remove' && now - task.timestamp > 180) {
+        setCell(task.cellX, task.cellZ, { terrain: 'grass', kind: null, floors: 1, animate: true });
+        cropChopStates.delete(task.cellX + ',' + task.cellZ);
+
+        // 收集农作物
+        const worldPos = tilePos(task.cellX, task.cellZ);
+        const screenPos = getScreenPosition(worldPos.x, worldPos.y + 0.3, worldPos.z);
+        let harvestItem = task.cropType;
+        if (harvestItem === 'crop') harvestItem = 'crop';
+        const harvestCount = Math.floor(Math.random() * 2) + 1;
+        addItemToInventory(harvestItem, harvestCount);
+        showCollectAnimation(harvestItem, screenPos.x, screenPos.y);
+        const itemNames = { corn: '玉米', wheat: '小麦', pumpkin: '南瓜', crop: '白菜' };
+        showInteractionPopup('获得' + itemNames[harvestItem] + ' x' + harvestCount);
+        tasksToRemove.push(task);
+      }
+    }
+
+    for (const task of tasksToRemove) {
+      const idx = pendingCropTasks.indexOf(task);
+      if (idx > -1) pendingCropTasks.splice(idx, 1);
+    }
+  }
+
+  // 获取世界坐标到屏幕坐标
+  function getScreenPosition(worldX, worldY, worldZ) {
+    const pos = new THREE.Vector3(worldX, worldY, worldZ);
+    pos.project(camera);
+    const x = (pos.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-pos.y * 0.5 + 0.5) * window.innerHeight;
+    return { x, y };
+  }
+
+  // 更新石头和农作物摆动效果
+  function updateRockAndCropEffects(dt) {
+    // 石头
+    for (const [key, state] of rockChopStates) {
+      if (state.wobbleAmount > 0) {
+        state.wobbleTimer += dt;
+        const [cellX, cellZ] = key.split(',').map(Number);
+        const cellMesh = cellMeshes[cellX + ',' + cellZ];
+        if (cellMesh && cellMesh.object) {
+          const wobble = Math.sin(state.wobbleTimer * 35) * state.wobbleAmount;
+          cellMesh.object.rotation.x = wobble * 0.25;
+          cellMesh.object.rotation.z = wobble * 0.2;
+        }
+        state.wobbleAmount *= 0.93;
+        if (state.wobbleAmount < 0.001) {
+          state.wobbleAmount = 0;
+          if (cellMesh && cellMesh.object) {
+            cellMesh.object.rotation.x = 0;
+            cellMesh.object.rotation.z = 0;
+          }
+        }
+      }
+    }
+
+    // 农作物
+    for (const [key, state] of cropChopStates) {
+      if (state.wobbleAmount > 0) {
+        state.wobbleTimer += dt;
+        const [cellX, cellZ] = key.split(',').map(Number);
+        const cellMesh = cellMeshes[cellX + ',' + cellZ];
+        if (cellMesh && cellMesh.object) {
+          const wobble = Math.sin(state.wobbleTimer * 40) * state.wobbleAmount;
+          cellMesh.object.rotation.x = wobble * 0.35;
+          cellMesh.object.rotation.z = wobble * 0.25;
+        }
+        state.wobbleAmount *= 0.91;
+        if (state.wobbleAmount < 0.001) {
+          state.wobbleAmount = 0;
+          if (cellMesh && cellMesh.object) {
+            cellMesh.object.rotation.x = 0;
+            cellMesh.object.rotation.z = 0;
+          }
+        }
+      }
+    }
+  }
+
+  // 扩展砍树功能，增加物品收集
   function chopTree(cellX, cellZ) {
     const cell = getWorldCell(cellX, cellZ);
     if (!cell || cell.kind !== 'tree') return false;
@@ -7153,6 +7715,35 @@
       character.chopCooldown = 0.35;
     }
     return true;
+  }
+
+  // 重写队列处理，增加木材收集
+  function processPendingChopTasks() {
+    const now = performance.now();
+    const tasksToRemove = [];
+
+    for (const task of pendingChopTasks) {
+      if (task.type === 'remove' && now - task.timestamp > 200) {
+        const grassVariants = ['grass'];
+        const randomTerrain = grassVariants[Math.floor(Math.random() * grassVariants.length)];
+        setCell(task.cellX, task.cellZ, { terrain: randomTerrain, kind: null, floors: 1, animate: true });
+        restoreTreeMaterials(task.cellX, task.cellZ);
+
+        // 收集木材
+        const worldPos = tilePos(task.cellX, task.cellZ);
+        const screenPos = getScreenPosition(worldPos.x, worldPos.y + 0.5, worldPos.z);
+        const woodCount = Math.floor(Math.random() * 3) + 2;
+        addItemToInventory('wood', woodCount);
+        showCollectAnimation('wood', screenPos.x, screenPos.y);
+        showInteractionPopup('获得木材 x' + woodCount);
+        tasksToRemove.push(task);
+      }
+    }
+
+    for (const task of tasksToRemove) {
+      const index = pendingChopTasks.indexOf(task);
+      if (index > -1) pendingChopTasks.splice(index, 1);
+    }
   }
 
   function enterHouse(cellX, cellZ) {
@@ -7291,7 +7882,7 @@
         character.pos.x = newX;
         character.pos.z = newZ;
         character.mesh.rotation.y = character.dir;
-      } else if (collision.kind === 'tree' || collision.kind === 'house') {
+      } else if (collision.kind) {
         if (characterKeys.interact && character.interactCooldown <= 0) {
           if (collision.kind === 'tree') {
             character.chopping = true;
@@ -7301,6 +7892,20 @@
               -(tilePos(collision.cellX, collision.cellZ).z - character.pos.z)
             );
             chopTree(collision.cellX, collision.cellZ);
+          } else if (collision.kind === 'rock') {
+            character.chopping = true;
+            character.mesh.rotation.y = Math.atan2(
+              tilePos(collision.cellX, collision.cellZ).x - character.pos.x,
+              -(tilePos(collision.cellX, collision.cellZ).z - character.pos.z)
+            );
+            chopRock(collision.cellX, collision.cellZ);
+          } else if (['crop', 'corn', 'wheat', 'pumpkin'].includes(collision.kind)) {
+            character.chopping = true;
+            character.mesh.rotation.y = Math.atan2(
+              tilePos(collision.cellX, collision.cellZ).x - character.pos.x,
+              -(tilePos(collision.cellX, collision.cellZ).z - character.pos.z)
+            );
+            harvestCrop(collision.cellX, collision.cellZ);
           } else if (collision.kind === 'house') {
             enterHouse(collision.cellX, collision.cellZ);
           }
@@ -10876,6 +11481,22 @@
       e.preventDefault();
     }
 
+    // Inventory toggle (I key)
+    if (k === 'i') {
+      toggleInventory();
+      e.preventDefault();
+    }
+
+    // Hotbar number keys (1-6)
+    if (k >= '1' && k <= '6') {
+      const slotIndex = parseInt(k) - 1;
+      if (slotIndex >= 0 && slotIndex < inventory.hotbarSlots) {
+        inventory.selectedHotbarSlot = slotIndex;
+        renderHotbar();
+      }
+      e.preventDefault();
+    }
+
     if (generationViewLocked) {
       if (e.code === 'Space' || k === 'c' || k === 'p' || k === 'i' || k === 'r' || k === 'f' || e.key.indexOf('Arrow') === 0) {
         e.preventDefault();
@@ -13279,8 +13900,14 @@
 
     updateCharacter(dt);
 
+    // 更新所有砍伐效果
     updateTreeChopEffects(dt);
+    updateRockAndCropEffects(dt);
+
+    // 处理所有待处理任务
     processPendingChopTasks();
+    processPendingRockTasks();
+    processPendingCropTasks();
 
     renderScene();
   }
@@ -16810,6 +17437,17 @@
     }
     ensureGhostBoardsAroundTarget();
     initCharacter();
+    initInventory();
+    
+    // Add inventory button listener
+    const invBtn = document.getElementById('inventory-btn');
+    if (invBtn) {
+      invBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleInventory();
+      });
+    }
+    
     onResize();
     requestAnimationFrame(animate);
   }
