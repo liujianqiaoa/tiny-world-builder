@@ -7860,6 +7860,7 @@
     }
 
     if (character.chopCooldown > 0 || character.interactCooldown > 0) {
+      updateCharacterCell();
       updateCharacterAnimation(dt);
       return;
     }
