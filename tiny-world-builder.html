@@ -7012,13 +7012,42 @@
         gl_FragColor = vec4(finalColor, 1.0);
       }
     `,
-    uniforms: {
-      time: { value: 0 },
-      chopProgress: { value: 0 },
-      shakeIntensity: { value: 0.05 },
-      color: { value: new THREE.Color(0x6b8e4e) },
-      darkColor: { value: new THREE.Color(0x4a6c3a) },
-    }
+  };
+
+  // 着色器材质池 - 复用材质避免内存泄漏
+  const shaderMaterialPool = {
+    tree: [],
+    rock: [],
+    crop: [],
+    maxSize: 20,
+    
+    getTree() {
+      if (this.tree.length > 0) {
+        return this.tree.pop();
+      }
+      return new THREE.ShaderMaterial({
+        vertexShader: chopTreeShader.vertexShader,
+        fragmentShader: chopTreeShader.fragmentShader,
+        uniforms: {
+          time: { value: 0 },
+          chopProgress: { value: 0 },
+          shakeIntensity: { value: 0.05 },
+          color: { value: new THREE.Color(0x6b8e4e) },
+          darkColor: { value: new THREE.Color(0x4a6c3a) },
+        },
+        lights: true,
+      });
+    },
+    
+    releaseTree(mat) {
+      if (this.tree.length < this.maxSize) {
+        mat.uniforms.chopProgress.value = 0;
+        mat.uniforms.shakeIntensity.value = 0.05;
+        this.tree.push(mat);
+      } else {
+        mat.dispose();
+      }
+    },
   };
 
   function makeCharacter() {
@@ -7221,24 +7250,15 @@
     const chopState = getTreeChopState(cellX, cellZ);
     
     if (!chopState.shaderMaterial) {
-      chopState.shaderMaterial = new THREE.ShaderMaterial({
-        vertexShader: chopTreeShader.vertexShader,
-        fragmentShader: chopTreeShader.fragmentShader,
-        uniforms: {
-          time: { value: 0 },
-          chopProgress: { value: 0 },
-          shakeIntensity: { value: 0.05 },
-          color: { value: new THREE.Color(0x6b8e4e) },
-          darkColor: { value: new THREE.Color(0x4a6c3a) },
-        },
-        lights: true,
-      });
+      chopState.shaderMaterial = shaderMaterialPool.getTree();
     }
 
+    let meshCount = 0;
     cellMesh.object.traverse(child => {
-      if (child.isMesh && child.material) {
+      if (child.isMesh && child.material && meshCount < 20) {
         chopState.originalMaterials.push({ mesh: child, material: child.material });
         child.material = chopState.shaderMaterial;
+        meshCount++;
       }
     });
   }
@@ -7249,11 +7269,13 @@
     if (!chopState) return;
 
     if (chopState.shaderMaterial) {
-      chopState.shaderMaterial.dispose();
+      shaderMaterialPool.releaseTree(chopState.shaderMaterial);
     }
 
     for (const { mesh, material } of chopState.originalMaterials) {
-      mesh.material = material;
+      if (mesh && mesh.material === chopState.shaderMaterial) {
+        mesh.material = material;
+      }
     }
 
     treeChopStates.delete(key);
@@ -7261,6 +7283,7 @@
 
   function updateTreeChopEffects(dt) {
     const currentTime = performance.now() * 0.001;
+    const keysToRemove = [];
 
     for (const [key, chopState] of treeChopStates) {
       if (chopState.shaderMaterial) {
@@ -7270,8 +7293,7 @@
 
       if (chopState.wobbleAmount > 0) {
         chopState.wobbleTimer += dt;
-        const meshKey = key;
-        const cellMesh = cellMeshes[meshKey];
+        const cellMesh = cellMeshes[key];
         if (cellMesh && cellMesh.object) {
           const wobble = Math.sin(chopState.wobbleTimer * 30) * chopState.wobbleAmount;
           cellMesh.object.rotation.x = wobble * 0.3;
@@ -7280,13 +7302,27 @@
         chopState.wobbleAmount *= 0.92;
         if (chopState.wobbleAmount < 0.001) {
           chopState.wobbleAmount = 0;
-          const cellMesh = cellMeshes[meshKey];
+          const cellMesh = cellMeshes[key];
           if (cellMesh && cellMesh.object) {
             cellMesh.object.rotation.x = 0;
             cellMesh.object.rotation.z = 0;
           }
         }
       }
+      
+      // 验证cellMesh是否还存在
+      if (!cellMeshes[key]) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    // 批量清理无效状态
+    for (const key of keysToRemove) {
+      const chopState = treeChopStates.get(key);
+      if (chopState && chopState.shaderMaterial) {
+        shaderMaterialPool.releaseTree(chopState.shaderMaterial);
+      }
+      treeChopStates.delete(key);
     }
   }
 
@@ -7354,42 +7390,62 @@
     updateInventoryCount();
   }
 
+  // 背包渲染节流
+  let inventoryRenderTimeout = null;
+  let hotbarRenderTimeout = null;
+
+  function scheduleInventoryRender() {
+    if (inventoryRenderTimeout) clearTimeout(inventoryRenderTimeout);
+    inventoryRenderTimeout = setTimeout(() => {
+      renderInventory();
+      inventoryRenderTimeout = null;
+    }, 50);
+  }
+
+  function scheduleHotbarRender() {
+    if (hotbarRenderTimeout) clearTimeout(hotbarRenderTimeout);
+    hotbarRenderTimeout = setTimeout(() => {
+      renderHotbar();
+      hotbarRenderTimeout = null;
+    }, 50);
+  }
+
   // 添加物品到背包
   function addItemToInventory(itemType, count = 1) {
     const itemDef = ITEMS[itemType];
     if (!itemDef) return false;
 
+    let needsRender = false;
+
     // 先找同类型的物品堆叠
-    for (let i = 0; i < inventory.items.length; i++) {
+    for (let i = 0; i < inventory.items.length && count > 0; i++) {
       const slot = inventory.items[i];
       if (slot && slot.type === itemType && slot.count < itemDef.stackSize) {
         const canAdd = Math.min(count, itemDef.stackSize - slot.count);
         slot.count += canAdd;
         count -= canAdd;
-        if (count <= 0) {
-          renderInventory();
-          updateInventoryCount();
-          return true;
-        }
+        needsRender = true;
       }
     }
 
     // 找空格子
-    for (let i = 0; i < inventory.items.length; i++) {
-      if (!inventory.items[i]) {
-        const canAdd = Math.min(count, itemDef.stackSize);
-        inventory.items[i] = { type: itemType, count: canAdd };
-        count -= canAdd;
-        if (count <= 0) {
-          renderInventory();
-          updateInventoryCount();
-          return true;
+    if (count > 0) {
+      for (let i = 0; i < inventory.items.length && count > 0; i++) {
+        if (!inventory.items[i]) {
+          const canAdd = Math.min(count, itemDef.stackSize);
+          inventory.items[i] = { type: itemType, count: canAdd };
+          count -= canAdd;
+          needsRender = true;
         }
       }
     }
 
-    renderInventory();
-    updateInventoryCount();
+    if (needsRender) {
+      scheduleInventoryRender();
+      scheduleHotbarRender();
+      updateInventoryCount();
+    }
+
     return count <= 0;
   }
 
@@ -7644,12 +7700,16 @@
 
   // 更新石头和农作物摆动效果
   function updateRockAndCropEffects(dt) {
+    if (rockChopStates.size === 0 && cropChopStates.size === 0) return;
+
+    const rockKeysToRemove = [];
+    const cropKeysToRemove = [];
+
     // 石头
     for (const [key, state] of rockChopStates) {
       if (state.wobbleAmount > 0) {
         state.wobbleTimer += dt;
-        const [cellX, cellZ] = key.split(',').map(Number);
-        const cellMesh = cellMeshes[cellX + ',' + cellZ];
+        const cellMesh = cellMeshes[key];
         if (cellMesh && cellMesh.object) {
           const wobble = Math.sin(state.wobbleTimer * 35) * state.wobbleAmount;
           cellMesh.object.rotation.x = wobble * 0.25;
@@ -7658,11 +7718,15 @@
         state.wobbleAmount *= 0.93;
         if (state.wobbleAmount < 0.001) {
           state.wobbleAmount = 0;
+          const cellMesh = cellMeshes[key];
           if (cellMesh && cellMesh.object) {
             cellMesh.object.rotation.x = 0;
             cellMesh.object.rotation.z = 0;
           }
         }
+      }
+      if (!cellMeshes[key]) {
+        rockKeysToRemove.push(key);
       }
     }
 
@@ -7670,8 +7734,7 @@
     for (const [key, state] of cropChopStates) {
       if (state.wobbleAmount > 0) {
         state.wobbleTimer += dt;
-        const [cellX, cellZ] = key.split(',').map(Number);
-        const cellMesh = cellMeshes[cellX + ',' + cellZ];
+        const cellMesh = cellMeshes[key];
         if (cellMesh && cellMesh.object) {
           const wobble = Math.sin(state.wobbleTimer * 40) * state.wobbleAmount;
           cellMesh.object.rotation.x = wobble * 0.35;
@@ -7680,12 +7743,24 @@
         state.wobbleAmount *= 0.91;
         if (state.wobbleAmount < 0.001) {
           state.wobbleAmount = 0;
+          const cellMesh = cellMeshes[key];
           if (cellMesh && cellMesh.object) {
             cellMesh.object.rotation.x = 0;
             cellMesh.object.rotation.z = 0;
           }
         }
       }
+      if (!cellMeshes[key]) {
+        cropKeysToRemove.push(key);
+      }
+    }
+
+    // 批量清理无效状态
+    for (const key of rockKeysToRemove) {
+      rockChopStates.delete(key);
+    }
+    for (const key of cropKeysToRemove) {
+      cropChopStates.delete(key);
     }
   }
 
@@ -7925,59 +8000,39 @@
   function updateCharacterAnimation(dt) {
     if (!character.mesh) return;
 
-    const moveX = (characterKeys.right ? 1 : 0) - (characterKeys.left ? 1 : 0);
-    const moveZ = (characterKeys.backward ? 1 : 0) - (characterKeys.forward ? 1 : 0);
-    const isMoving = (moveX !== 0 || moveZ !== 0) && !character.insideHouse;
+    const mesh = character.mesh;
+    const isChopping = character.chopCooldown > 0 && character.chopping;
+    const canMove = character.chopCooldown <= 0 && !character.insideHouse;
 
-    if (character.chopCooldown > 0 && character.chopping) {
-      character.mesh.userData.chopPhase += dt * 8;
-      const chopSwing = Math.sin(character.mesh.userData.chopPhase) * 1.2;
-      if (character.mesh.userData.armR) {
-        character.mesh.userData.armR.rotation.z = -0.5 - chopSwing;
-      }
-      if (character.mesh.userData.axeHandle) {
-        character.mesh.userData.axeHandle.rotation.z = -0.3 - chopSwing * 0.8;
-      }
-      if (character.mesh.userData.axeHead) {
-        character.mesh.userData.axeHead.rotation.z = -chopSwing * 0.8;
-      }
+    if (isChopping) {
+      mesh.userData.chopPhase += dt * 8;
+      const chopSwing = Math.sin(mesh.userData.chopPhase) * 1.2;
+      if (mesh.userData.armR) mesh.userData.armR.rotation.z = -0.5 - chopSwing;
+      if (mesh.userData.axeHandle) mesh.userData.axeHandle.rotation.z = -0.3 - chopSwing * 0.8;
+      if (mesh.userData.axeHead) mesh.userData.axeHead.rotation.z = -chopSwing * 0.8;
     } else {
       character.chopping = false;
-      if (character.mesh.userData.armR) {
-        character.mesh.userData.armR.rotation.z = 0;
-      }
-      if (character.mesh.userData.axeHandle) {
-        character.mesh.userData.axeHandle.rotation.z = -0.3;
-      }
-      if (character.mesh.userData.axeHead) {
-        character.mesh.userData.axeHead.rotation.z = 0;
-      }
+      if (mesh.userData.armR) mesh.userData.armR.rotation.z = 0;
+      if (mesh.userData.axeHandle) mesh.userData.axeHandle.rotation.z = -0.3;
+      if (mesh.userData.axeHead) mesh.userData.axeHead.rotation.z = 0;
     }
 
-    if (isMoving && character.chopCooldown <= 0) {
-      character.mesh.userData.walkPhase += dt * 10;
-      const walkSwing = Math.sin(character.mesh.userData.walkPhase) * 0.4;
-      if (character.mesh.userData.legL) {
-        character.mesh.userData.legL.rotation.x = walkSwing;
-      }
-      if (character.mesh.userData.legR) {
-        character.mesh.userData.legR.rotation.x = -walkSwing;
-      }
-      if (character.mesh.userData.armL) {
-        character.mesh.userData.armL.rotation.x = -walkSwing * 0.6;
-      }
-      if (character.mesh.userData.armR && !character.chopping) {
-        character.mesh.userData.armR.rotation.x = walkSwing * 0.6;
-      }
+    const moveX = characterKeys.right - characterKeys.left;
+    const moveZ = characterKeys.backward - characterKeys.forward;
+    const isMoving = (moveX !== 0 || moveZ !== 0) && canMove;
+
+    if (isMoving) {
+      mesh.userData.walkPhase += dt * 10;
+      const walkSwing = Math.sin(mesh.userData.walkPhase) * 0.4;
+      if (mesh.userData.legL) mesh.userData.legL.rotation.x = walkSwing;
+      if (mesh.userData.legR) mesh.userData.legR.rotation.x = -walkSwing;
+      if (mesh.userData.armL) mesh.userData.armL.rotation.x = -walkSwing * 0.6;
+      if (mesh.userData.armR && !isChopping) mesh.userData.armR.rotation.x = walkSwing * 0.6;
     } else {
-      if (character.mesh.userData.legL) character.mesh.userData.legL.rotation.x = 0;
-      if (character.mesh.userData.legR) character.mesh.userData.legR.rotation.x = 0;
-      if (character.mesh.userData.armL && !character.chopping) {
-        character.mesh.userData.armL.rotation.x = 0;
-      }
-      if (character.mesh.userData.armR && !character.chopping) {
-        character.mesh.userData.armR.rotation.x = 0;
-      }
+      if (mesh.userData.legL) mesh.userData.legL.rotation.x = 0;
+      if (mesh.userData.legR) mesh.userData.legR.rotation.x = 0;
+      if (mesh.userData.armL && !isChopping) mesh.userData.armL.rotation.x = 0;
+      if (mesh.userData.armR && !isChopping) mesh.userData.armR.rotation.x = 0;
     }
   }
 
