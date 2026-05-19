@@ -538,6 +538,37 @@
     image-rendering: -webkit-optimize-contrast;
     filter: contrast(1.45) brightness(0.78) saturate(1.28);
   }
+  .toolbar .inventory-tool {
+    position: relative;
+    font-size: 20px;
+    padding: 4px 8px;
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .toolbar .inventory-tool .tool-icon {
+    font-size: 22px;
+    line-height: 1;
+  }
+  .toolbar .inventory-tool .inventory-count {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: #e74c3c;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid white;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
   .toolbar-divider {
     width: 1px;
     height: 36px;
@@ -2885,70 +2916,24 @@
   }
 
   /* 背包系统样式 */
-  .inventory-btn {
-    position: fixed;
-    bottom: 100px;
-    right: 20px;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: linear-gradient(145deg, #8b6f54, #6b5a44);
-    border: 3px solid rgba(255, 255, 255, 0.4);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 26px;
-    z-index: 100;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  }
-  .inventory-btn:hover {
-    transform: scale(1.1);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-    border-color: rgba(255, 255, 255, 0.6);
-  }
-  .inventory-btn:active {
-    transform: scale(0.95);
-  }
-  .inventory-btn .btn-icon {
-    filter: drop-shadow(1px 1px 2px rgba(0, 0, 0, 0.2));
-  }
-  .inventory-count {
-    position: absolute;
-    top: -6px;
-    right: -6px;
-    background: linear-gradient(145deg, #e74c3c, #c0392b);
-    color: white;
-    font-size: 12px;
-    font-weight: bold;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  }
   .inventory-panel {
     position: fixed;
-    bottom: 170px;
-    right: 20px;
+    bottom: calc(var(--toolbar-height, 60px) + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px) scale(0.95);
     width: 320px;
     background: linear-gradient(180deg, #f5ebda 0%, #e8ddc8 100%);
     border-radius: 20px;
     padding: 0;
-    z-index: 99;
+    z-index: 1000;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
-    transform: translateY(20px) scale(0.95);
     opacity: 0;
     pointer-events: none;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: 2px solid rgba(139, 111, 84, 0.5);
   }
   .inventory-panel.visible {
-    transform: translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) scale(1);
     opacity: 1;
     pointer-events: auto;
   }
@@ -3169,10 +3154,6 @@
   <div id="tod-tint" aria-hidden="true"></div>
 
   <!-- 背包系统 UI -->
-  <button class="inventory-btn" id="inventory-btn" title="背包 (I)">
-    <span class="btn-icon">🎒</span>
-    <span class="inventory-count" id="inventory-count">0</span>
-  </button>
   <div class="inventory-panel" id="inventory-panel">
     <div class="inventory-header">
       <h3 class="inventory-title">📦 背包</h3>
@@ -7059,6 +7040,70 @@
     `,
   };
 
+  // 石头采集Shader
+  const collectRockShader = {
+    vertexShader: `
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      uniform float time;
+      uniform float collectProgress;
+      uniform float shakeIntensity;
+      
+      void main() {
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        vPosition = position;
+        
+        vec3 pos = position;
+        
+        // 震动效果
+        float shake = sin(time * 25.0 + position.x * 8.0 + position.y * 8.0 + position.z * 8.0) * shakeIntensity * collectProgress;
+        pos.x += shake;
+        pos.y += shake * 0.5;
+        pos.z += shake;
+        
+        // 碎裂前的膨胀效果
+        float expand = collectProgress * 0.15;
+        pos.x += position.x * expand;
+        pos.y += position.y * expand;
+        pos.z += position.z * expand;
+        
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      uniform float time;
+      uniform float collectProgress;
+      uniform vec3 color;
+      uniform vec3 crackColor;
+      
+      void main() {
+        vec3 finalColor = color;
+        
+        // 裂纹效果
+        float crack1 = sin(time * 10.0 + vPosition.x * 15.0 + vPosition.z * 15.0) * 0.5 + 0.5;
+        float crack2 = cos(time * 8.0 + vPosition.y * 12.0 + vPosition.x * 12.0) * 0.5 + 0.5;
+        float cracks = smoothstep(0.6, 0.9, crack1 * crack2 * collectProgress);
+        finalColor = mix(finalColor, crackColor, cracks);
+        
+        // 闪光效果
+        float sparkle = sin(time * 30.0 + vPosition.x * 20.0 + vPosition.y * 20.0 + vPosition.z * 20.0) * 0.5 + 0.5;
+        sparkle = smoothstep(0.85, 1.0, sparkle * collectProgress);
+        finalColor += sparkle * 0.4;
+        
+        // 光照
+        float light = max(0.0, dot(vNormal, vec3(0.3, 1.0, 0.3))) * 0.6 + 0.4;
+        finalColor *= light;
+        
+        gl_FragColor = vec4(finalColor, 1.0);
+      }
+    `,
+  };
+
   // 着色器材质池 - 复用材质避免内存泄漏
   const shaderMaterialPool = {
     tree: [],
@@ -7089,6 +7134,34 @@
         mat.uniforms.chopProgress.value = 0;
         mat.uniforms.shakeIntensity.value = 0.05;
         this.tree.push(mat);
+      } else {
+        mat.dispose();
+      }
+    },
+    
+    getRock() {
+      if (this.rock.length > 0) {
+        return this.rock.pop();
+      }
+      return new THREE.ShaderMaterial({
+        vertexShader: collectRockShader.vertexShader,
+        fragmentShader: collectRockShader.fragmentShader,
+        uniforms: {
+          time: { value: 0 },
+          collectProgress: { value: 0 },
+          shakeIntensity: { value: 0.08 },
+          color: { value: new THREE.Color(0x808080) },
+          crackColor: { value: new THREE.Color(0x4a4a4a) },
+        },
+        lights: true,
+      });
+    },
+    
+    releaseRock(mat) {
+      if (this.rock.length < this.maxSize) {
+        mat.uniforms.collectProgress.value = 0;
+        mat.uniforms.shakeIntensity.value = 0.08;
+        this.rock.push(mat);
       } else {
         mat.dispose();
       }
@@ -7496,9 +7569,18 @@
 
   // 更新背包物品数量显示
   function updateInventoryCount() {
+    const totalCount = inventory.items.reduce((sum, slot) => sum + (slot ? slot.count : 0), 0);
+    
+    // 更新工具栏中的背包计数
+    const toolbarCountEl = document.getElementById('toolbar-inventory-count');
+    if (toolbarCountEl) {
+      toolbarCountEl.textContent = totalCount;
+      toolbarCountEl.style.display = totalCount > 0 ? 'flex' : 'none';
+    }
+    
+    // 也更新原来的独立背包按钮计数（如果存在）
     const countEl = document.getElementById('inventory-count');
     if (countEl) {
-      const totalCount = inventory.items.reduce((sum, slot) => sum + (slot ? slot.count : 0), 0);
       countEl.textContent = totalCount;
       countEl.style.display = totalCount > 0 ? 'flex' : 'none';
     }
@@ -7607,7 +7689,7 @@
   function getRockChopState(cellX, cellZ) {
     const key = cellX + ',' + cellZ;
     if (!rockChopStates.has(key)) {
-      rockChopStates.set(key, { hits: 0, wobbleTimer: 0, wobbleAmount: 0 });
+      rockChopStates.set(key, { hits: 0, wobbleTimer: 0, wobbleAmount: 0, shaderMaterial: null, originalMaterials: [] });
     }
     return rockChopStates.get(key);
   }
@@ -7620,6 +7702,47 @@
     return cropChopStates.get(key);
   }
 
+  // 初始化石头Shader效果
+  function initRockCollectEffect(cellX, cellZ) {
+    const key = cellX + ',' + cellZ;
+    const cellMesh = cellMeshes[key];
+    if (!cellMesh || !cellMesh.object) return;
+
+    const chopState = getRockChopState(cellX, cellZ);
+    
+    if (!chopState.shaderMaterial) {
+      chopState.shaderMaterial = shaderMaterialPool.getRock();
+    }
+
+    let meshCount = 0;
+    cellMesh.object.traverse(child => {
+      if (child.isMesh && child.material && meshCount < 20) {
+        chopState.originalMaterials.push({ mesh: child, material: child.material });
+        child.material = chopState.shaderMaterial;
+        meshCount++;
+      }
+    });
+  }
+
+  // 恢复石头材质
+  function restoreRockMaterials(cellX, cellZ) {
+    const key = cellX + ',' + cellZ;
+    const chopState = rockChopStates.get(key);
+    if (!chopState) return;
+
+    if (chopState.shaderMaterial) {
+      shaderMaterialPool.releaseRock(chopState.shaderMaterial);
+    }
+
+    for (const { mesh, material } of chopState.originalMaterials) {
+      if (mesh && mesh.material === chopState.shaderMaterial) {
+        mesh.material = material;
+      }
+    }
+
+    rockChopStates.delete(key);
+  }
+
   // 砍石头
   function chopRock(cellX, cellZ) {
     const cell = getWorldCell(cellX, cellZ);
@@ -7630,11 +7753,15 @@
     chopState.wobbleAmount = 0.12 + chopState.hits * 0.04;
     chopState.wobbleTimer = 0;
 
+    // 第一次采集时初始化shader效果
+    if (chopState.hits === 1) {
+      initRockCollectEffect(cellX, cellZ);
+    }
+
     showInteractionPopup('采石中... ' + chopState.hits + '/4');
 
     if (chopState.hits >= 4) {
       queueRockRemoval(cellX, cellZ);
-      chopState.hits = 0;
       character.chopCooldown = 0.7;
     } else {
       character.chopCooldown = 0.3;
@@ -7656,7 +7783,9 @@
         const grassVariants = ['grass'];
         const randomTerrain = grassVariants[Math.floor(Math.random() * grassVariants.length)];
         setCell(task.cellX, task.cellZ, { terrain: randomTerrain, kind: null, floors: 1, animate: true });
-        rockChopStates.delete(task.cellX + ',' + task.cellZ);
+        
+        // 清理shader材质
+        restoreRockMaterials(task.cellX, task.cellZ);
 
         // 收集石头
         const worldPos = tilePos(task.cellX, task.cellZ);
@@ -7749,9 +7878,16 @@
 
     const rockKeysToRemove = [];
     const cropKeysToRemove = [];
+    const currentTime = performance.now() * 0.001;
 
     // 石头
     for (const [key, state] of rockChopStates) {
+      // 更新shader效果
+      if (state.shaderMaterial) {
+        state.shaderMaterial.uniforms.time.value = currentTime;
+        state.shaderMaterial.uniforms.collectProgress.value = state.hits / 4;
+      }
+
       if (state.wobbleAmount > 0) {
         state.wobbleTimer += dt;
         const cellMesh = cellMeshes[key];
@@ -7771,6 +7907,7 @@
         }
       }
       if (!cellMeshes[key]) {
+        restoreRockMaterials(parseInt(key.split(',')[0]), parseInt(key.split(',')[1]));
         rockKeysToRemove.push(key);
       }
     }
@@ -10877,6 +11014,22 @@
 
     const erase = TOOLS.find(t => t.id === 'erase');
     if (erase) bar.appendChild(buildToolButton(erase));
+
+    // 添加背包按钮到工具栏
+    const invBtn = document.createElement('button');
+    invBtn.className = 'tool inventory-tool';
+    invBtn.type = 'button';
+    invBtn.title = '背包 (I)';
+    invBtn.setAttribute('data-tooltip', '背包');
+    invBtn.innerHTML = `
+      <span class="tool-icon">🎒</span>
+      <span class="inventory-count" id="toolbar-inventory-count">0</span>
+    `;
+    invBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleInventory();
+    });
+    bar.appendChild(invBtn);
 
     const audioPanel = document.getElementById('audio-panel');
     if (audioPanel) bar.appendChild(audioPanel);
@@ -17539,15 +17692,6 @@
     ensureGhostBoardsAroundTarget();
     initCharacter();
     initInventory();
-    
-    // Add inventory button listener
-    const invBtn = document.getElementById('inventory-btn');
-    if (invBtn) {
-      invBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleInventory();
-      });
-    }
     
     // Add inventory close button listener
     const closeBtn = document.getElementById('inventory-close');
